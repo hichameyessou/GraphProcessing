@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.NullValue;
@@ -52,45 +53,69 @@ public class DegreeDistribution {
         /* Graph */
         Graph<Long, NullValue, Boolean> graph = Graph.fromTupleDataSet(vertices,edges,env);
 
+
+
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
         DataSet<Tuple2<Long,LongValue>> inDegrees = graph.inDegrees();
         DataSet<Tuple2<Long,LongValue>> outDegrees = graph.outDegrees();
 
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
 
-        DataSet<Tuple2<Long, Double>> degreeDistribution =
-                degrees.groupBy(1).reduceGroup(new DistributionElement())
-                        .withBroadcastSet(totVertices, "totVertices");
+        DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
+                .groupBy(1).reduceGroup(new DistributionElement())
+                .withBroadcastSet(totVertices, "totVertices");
 
-        DataSet<Tuple2<Long, Double>> inDegreeDistribution =
-                inDegrees.groupBy(1).reduceGroup(new DistributionElement())
-                        .withBroadcastSet(totVertices, "totVertices");
+        DataSet<Tuple2<Long, Double>> inDegreeDistribution = inDegrees
+                .groupBy(1).reduceGroup(new DistributionElement())
+                .withBroadcastSet(totVertices, "totVertices");
 
-        DataSet<Tuple2<Long, Double>> outDegreeDistribution =
-                outDegrees.groupBy(1).reduceGroup(new DistributionElement())
-                        .withBroadcastSet(totVertices, "totVertices");
+        DataSet<Tuple2<Long, Double>> outDegreeDistribution = outDegrees
+                .groupBy(1).reduceGroup(new DistributionElement())
+                .withBroadcastSet(totVertices, "totVertices");
 
 
         /* Write to file */
 
-        degreeDistribution.writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
+        degreeDistribution
+                .writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
-        inDegreeDistribution.writeAsCsv(Config.outputPath()+"inDegree_dist.csv", FileSystem.WriteMode.OVERWRITE)
+        inDegreeDistribution
+                .writeAsCsv(Config.outputPath()+"in-degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
-        outDegreeDistribution.writeAsCsv(Config.outputPath()+"outDegree_dist.csv", FileSystem.WriteMode.OVERWRITE)
+        outDegreeDistribution
+                .writeAsCsv(Config.outputPath()+"out-degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
+
+        Graph<Long, NullValue, Boolean> friendsGraph = graph.filterOnEdges(new FilterFriends());
+        Graph<Long, NullValue, Boolean> notFriendsGraph = graph.difference(friendsGraph);
+
+        DataSet<Tuple2<Long,LongValue>> outFriendsDistribution = friendsGraph.outDegrees();
+        DataSet<Tuple2<Long,LongValue>> outNotFriendsDistribution = notFriendsGraph.outDegrees();
+
+        outFriendsDistribution
+                .groupBy(1).reduceGroup(new DistributionElement())
+                .withBroadcastSet(totVertices, "totVertices")
+                .writeAsCsv(Config.outputPath()+" out-degree_friend_dist.csv", FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);;
+
+        outNotFriendsDistribution
+                .groupBy(1).reduceGroup(new DistributionElement())
+                .withBroadcastSet(totVertices, "totVertices")
+                .writeAsCsv(Config.outputPath()+" out-degree_foe_dist.csv", FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);
 
         /* Calculate the average degree and write to file */
-		// IMPLEMENT ME
+        // IMPLEMENT ME
 
-		/*Calculate the max degree and write to file */
-		// IMPLEMENT ME
-				
+        /*Calculate the max degree and write to file */
+        // IMPLEMENT ME
+
         env.execute();
     }
+
 
     public static class VertexReader implements FlatMapFunction<String, Tuple2<Long, NullValue>> {
         @Override
@@ -148,4 +173,10 @@ public class DegreeDistribution {
     }
 
 
+    private static class FilterFriends implements FilterFunction<Edge<Long, Boolean>> {
+        @Override
+        public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
+            return longBooleanEdge.f2 == true;
+        }
+    }
 }
