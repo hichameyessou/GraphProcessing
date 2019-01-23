@@ -58,7 +58,7 @@ public class DegreeDistribution {
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
         DataSet<Tuple2<Long,LongValue>> inDegrees = graph.inDegrees();
         DataSet<Tuple2<Long,LongValue>> outDegrees = graph.outDegrees();
-        
+
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
 
         DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
@@ -89,7 +89,7 @@ public class DegreeDistribution {
 
 
         Graph<Long, NullValue, Boolean> friendsGraph = graph.filterOnEdges(new FilterFriends());
-        Graph<Long, NullValue, Boolean> notFriendsGraph = graph.difference(friendsGraph);
+        Graph<Long, NullValue, Boolean> notFriendsGraph = graph.filterOnEdges(new FilterNotFriends());
 
         DataSet<Tuple2<Long,LongValue>> outFriendsDistribution = friendsGraph.outDegrees();
         DataSet<Tuple2<Long,LongValue>> outNotFriendsDistribution = notFriendsGraph.outDegrees();
@@ -176,6 +176,13 @@ public class DegreeDistribution {
         @Override
         public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
             return longBooleanEdge.f2 == true;
+        }
+    }
+
+    private static class FilterNotFriends implements FilterFunction<Edge<Long, Boolean>> {
+        @Override
+        public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
+            return longBooleanEdge.f2 == false;
         }
     }
 }
