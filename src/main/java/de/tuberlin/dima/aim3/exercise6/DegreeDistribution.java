@@ -58,7 +58,7 @@ public class DegreeDistribution {
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
         DataSet<Tuple2<Long,LongValue>> inDegrees = graph.inDegrees();
         DataSet<Tuple2<Long,LongValue>> outDegrees = graph.outDegrees();
-
+        
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
 
         DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
@@ -75,7 +75,6 @@ public class DegreeDistribution {
 
 
         /* Write to file */
-
         degreeDistribution
                 .writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
