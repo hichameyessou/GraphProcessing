@@ -41,19 +41,18 @@ public class VertexQuery {
                 .maxBy(1)
                 .writeAsCsv(Config.outputPath()+"vertex_max_foe.txt", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
-
     }
 
     private class FFilterFriends implements org.apache.flink.api.common.functions.FilterFunction<Tuple3<Long, Long, Boolean>> {
         @Override
         public boolean filter(Tuple3<Long, Long, Boolean> in) throws Exception {
-            return in.f2 == true;
+            return in.f2;
         }
     }
     private class FFilterFoe implements org.apache.flink.api.common.functions.FilterFunction<Tuple3<Long, Long, Boolean>> {
         @Override
         public boolean filter(Tuple3<Long, Long, Boolean> in) throws Exception {
-            return in.f2 == false;
+            return !in.f2;
         }
     }
 

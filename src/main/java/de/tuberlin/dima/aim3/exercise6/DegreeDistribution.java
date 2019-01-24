@@ -56,20 +56,21 @@ public class DegreeDistribution {
 
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
-/*
+
         DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
                 .groupBy(1)
                 .reduceGroup(new DistributionElement())
                 .withBroadcastSet(totVertices, "totVertices");
 
-        /* Write to file *//*
+        /* Write to file */
         degreeDistribution
                 .writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
         InDegreeDistribution idd = new InDegreeDistribution(graph, totVertices);
-        SignedOutDegreeDistribution sodd = new SignedOutDegreeDistribution(graph, totVertices);*/
+        SignedOutDegreeDistribution sodd = new SignedOutDegreeDistribution(graph, env);
         VertexQuery vq = new VertexQuery(graph);
+        AverageFriendFoeRatio affr = new AverageFriendFoeRatio(graph, env);
 
         /* Calculate the average degree and write to file */
         // IMPLEMENT ME
