@@ -54,63 +54,42 @@ public class DegreeDistribution {
         Graph<Long, NullValue, Boolean> graph = Graph.fromTupleDataSet(vertices,edges,env);
 
 
-
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
-        DataSet<Tuple2<Long,LongValue>> inDegrees = graph.inDegrees();
-        DataSet<Tuple2<Long,LongValue>> outDegrees = graph.outDegrees();
-
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
-
+/*
         DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
-                .groupBy(1).reduceGroup(new DistributionElement())
+                .groupBy(1)
+                .reduceGroup(new DistributionElement())
                 .withBroadcastSet(totVertices, "totVertices");
 
-        DataSet<Tuple2<Long, Double>> inDegreeDistribution = inDegrees
-                .groupBy(1).reduceGroup(new DistributionElement())
-                .withBroadcastSet(totVertices, "totVertices");
-
-        DataSet<Tuple2<Long, Double>> outDegreeDistribution = outDegrees
-                .groupBy(1).reduceGroup(new DistributionElement())
-                .withBroadcastSet(totVertices, "totVertices");
-
-
-        /* Write to file */
+        /* Write to file *//*
         degreeDistribution
                 .writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
-        inDegreeDistribution
-                .writeAsCsv(Config.outputPath()+"in-degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
-
-        outDegreeDistribution
-                .writeAsCsv(Config.outputPath()+"out-degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
-
-
-        Graph<Long, NullValue, Boolean> friendsGraph = graph.filterOnEdges(new FilterFriends());
-        Graph<Long, NullValue, Boolean> notFriendsGraph = graph.filterOnEdges(new FilterNotFriends());
-
-        DataSet<Tuple2<Long,LongValue>> outFriendsDistribution = friendsGraph.outDegrees();
-        DataSet<Tuple2<Long,LongValue>> outNotFriendsDistribution = notFriendsGraph.outDegrees();
-
-        outFriendsDistribution
-                .groupBy(1).reduceGroup(new DistributionElement())
-                .withBroadcastSet(totVertices, "totVertices")
-                .writeAsCsv(Config.outputPath()+" out-degree_friend_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);;
-
-        outNotFriendsDistribution
-                .groupBy(1).reduceGroup(new DistributionElement())
-                .withBroadcastSet(totVertices, "totVertices")
-                .writeAsCsv(Config.outputPath()+" out-degree_foe_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
+        InDegreeDistribution idd = new InDegreeDistribution(graph, totVertices);
+        SignedOutDegreeDistribution sodd = new SignedOutDegreeDistribution(graph, totVertices);*/
+        VertexQuery vq = new VertexQuery(graph);
 
         /* Calculate the average degree and write to file */
         // IMPLEMENT ME
 
+        DataSet<Tuple2<String, Double>> avgDegreeDistribution = degrees
+                .reduce(new AverageReducer())
+                .map(new AverageMapper())
+                .withBroadcastSet(totVertices, "totVertices");
+
+        avgDegreeDistribution.writeAsCsv(Config.outputPath()+"avg_degree.txt", FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);
+
         /*Calculate the max degree and write to file */
         // IMPLEMENT ME
+        DataSet<Tuple2<String, Long>> maxDegreeDistribution = degrees
+                .reduce(new MaxReducer())
+                .map(new MaxMapper());
+
+        maxDegreeDistribution.writeAsCsv(Config.outputPath()+"max_degree.txt", FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);
 
         env.execute();
     }
@@ -160,7 +139,6 @@ public class DegreeDistribution {
         @Override
         public void reduce(Iterable<Tuple2<Long, LongValue>> verticesWithDegree, Collector<Tuple2<Long, Double>> collector) throws Exception {
             Iterator<Tuple2<Long, LongValue>> iterator = verticesWithDegree.iterator();
-
             Long degree = iterator.next().f1.getValue();
             long count = 1L;
             while (iterator.hasNext()) {
@@ -171,18 +149,51 @@ public class DegreeDistribution {
         }
     }
 
-
-    private static class FilterFriends implements FilterFunction<Edge<Long, Boolean>> {
+    private static class AverageReducer implements ReduceFunction<Tuple2<Long, LongValue>> {
         @Override
-        public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
-            return longBooleanEdge.f2 == true;
+        public Tuple2<Long, LongValue> reduce(Tuple2<Long, LongValue> one, Tuple2<Long, LongValue> two) throws Exception {
+            if(one.f1 == null)
+                return new Tuple2<Long, LongValue>(0L, new LongValue(two.f1.getValue()));
+            if(two.f1 == null)
+                return new Tuple2<Long, LongValue>(0L, new LongValue(one.f1.getValue()));
+            return new Tuple2<Long, LongValue>(0L, new LongValue(one.f1.getValue()+two.f1.getValue()));
         }
     }
 
-    private static class FilterNotFriends implements FilterFunction<Edge<Long, Boolean>> {
+    private static class AverageMapper extends RichMapFunction<Tuple2<Long, LongValue>, Tuple2<String, Double>> {
+        private long totVertices;
+
         @Override
-        public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
-            return longBooleanEdge.f2 == false;
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            totVertices = getRuntimeContext().<Long>getBroadcastVariable("totVertices").get(0);
+            System.out.println("totVertices: " + totVertices);
+        }
+        @Override
+        public Tuple2<String, Double> map(Tuple2<Long, LongValue> in) throws Exception {
+            return new Tuple2<String, Double>("Average degree",(double) in.f1.getValue()/totVertices);
+        }
+    }
+
+    private static class MaxReducer implements ReduceFunction<Tuple2<Long, LongValue>> {
+        @Override
+        public Tuple2<Long, LongValue> reduce(Tuple2<Long, LongValue> one, Tuple2<Long, LongValue> two) throws Exception {
+            if(one.f1 == null)
+                return new Tuple2<Long, LongValue>(0L, new LongValue(two.f1.getValue()));
+            if(two.f1 == null)
+                return new Tuple2<Long, LongValue>(0L, new LongValue(one.f1.getValue()));
+
+            return new Tuple2<Long, LongValue>(0L, new LongValue(
+                    one.f1.getValue() >= two.f1.getValue()
+                            ? one.f1.getValue()
+                            : two.f1.getValue()));
+        }
+    }
+
+    private static class MaxMapper implements MapFunction<Tuple2<Long, LongValue>, Tuple2<String, Long>> {
+        @Override
+        public Tuple2<String, Long> map(Tuple2<Long, LongValue> in) throws Exception {
+            return new Tuple2<String, Long>("Maximum Degree",in.f1.getValue());
         }
     }
 }
