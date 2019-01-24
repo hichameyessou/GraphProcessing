@@ -38,6 +38,10 @@ import java.util.regex.Pattern;
 
 public class DegreeDistribution {
 
+    static String DEGREE_OUTPUT = "degree_dist.csv";
+    static String AVERAGE_DEGREE_OUTPUT = "avg_degree.txt";
+    static String MAX_DEGREE_OUTPUT = "max_degree.txt";
+
     public static void main(String[] args) throws Exception {
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -57,40 +61,41 @@ public class DegreeDistribution {
         DataSet<Tuple2<Long,LongValue>> degrees = graph.getDegrees();
         DataSet<Long> totVertices = graph.getVertices().reduceGroup(new CountVertices());
 
+        //Part a)
+        InDegreeDistribution idd = new InDegreeDistribution(graph, totVertices);
+        //Part b)
+        SignedOutDegreeDistribution sodd = new SignedOutDegreeDistribution(graph, env);
+        //Part d)
+        VertexQuery vq = new VertexQuery(graph);
+        //Part e)
+        AverageFriendFoeRatio affr = new AverageFriendFoeRatio(graph, env);
+
+        /* Calculate the degree, average, max degree and write to file */
         DataSet<Tuple2<Long, Double>> degreeDistribution = degrees
                 .groupBy(1)
                 .reduceGroup(new DistributionElement())
                 .withBroadcastSet(totVertices, "totVertices");
-
-        /* Write to file */
-        degreeDistribution
-                .writeAsCsv(Config.outputPath()+"degree_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
-
-        InDegreeDistribution idd = new InDegreeDistribution(graph, totVertices);
-        SignedOutDegreeDistribution sodd = new SignedOutDegreeDistribution(graph, env);
-        VertexQuery vq = new VertexQuery(graph);
-        AverageFriendFoeRatio affr = new AverageFriendFoeRatio(graph, env);
-
-        /* Calculate the average degree and write to file */
-        // IMPLEMENT ME
-
+        //Part c)
         DataSet<Tuple2<String, Double>> avgDegreeDistribution = degrees
-                .reduce(new AverageReducer())
-                .map(new AverageMapper())
-                .withBroadcastSet(totVertices, "totVertices");
+            .reduce(new AverageReducer())
+            .map(new AverageMapper())
+            .withBroadcastSet(totVertices, "totVertices");
 
-        avgDegreeDistribution.writeAsCsv(Config.outputPath()+"avg_degree.txt", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
-
-        /*Calculate the max degree and write to file */
-        // IMPLEMENT ME
         DataSet<Tuple2<String, Long>> maxDegreeDistribution = degrees
-                .reduce(new MaxReducer())
-                .map(new MaxMapper());
+            .reduce(new MaxReducer())
+            .map(new MaxMapper());
 
-        maxDegreeDistribution.writeAsCsv(Config.outputPath()+"max_degree.txt", FileSystem.WriteMode.OVERWRITE)
+        degreeDistribution
+                .writeAsCsv(Config.outputPath()+DEGREE_OUTPUT, FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
+
+        avgDegreeDistribution
+            .writeAsCsv(Config.outputPath()+AVERAGE_DEGREE_OUTPUT, FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);
+
+        maxDegreeDistribution
+            .writeAsCsv(Config.outputPath()+MAX_DEGREE_OUTPUT, FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);
 
         env.execute();
     }
@@ -153,6 +158,7 @@ public class DegreeDistribution {
     private static class AverageReducer implements ReduceFunction<Tuple2<Long, LongValue>> {
         @Override
         public Tuple2<Long, LongValue> reduce(Tuple2<Long, LongValue> one, Tuple2<Long, LongValue> two) throws Exception {
+            //TODO: Fix this
             if(one.f1 == null)
                 return new Tuple2<Long, LongValue>(0L, new LongValue(two.f1.getValue()));
             if(two.f1 == null)
@@ -168,7 +174,6 @@ public class DegreeDistribution {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             totVertices = getRuntimeContext().<Long>getBroadcastVariable("totVertices").get(0);
-            System.out.println("totVertices: " + totVertices);
         }
         @Override
         public Tuple2<String, Double> map(Tuple2<Long, LongValue> in) throws Exception {
@@ -177,6 +182,7 @@ public class DegreeDistribution {
     }
 
     private static class MaxReducer implements ReduceFunction<Tuple2<Long, LongValue>> {
+        //TODO: Not very elegant
         @Override
         public Tuple2<Long, LongValue> reduce(Tuple2<Long, LongValue> one, Tuple2<Long, LongValue> two) throws Exception {
             if(one.f1 == null)

@@ -18,10 +18,10 @@ import java.util.Iterator;
 
 public class AverageFriendFoeRatio {
 
-    DataSet<Vertex<Long, NullValue>> vertices;
     DataSet<Tuple3<Long, Long, Boolean>> graphWithEdges;
     DataSet<Tuple3<Long, Long, Boolean>> counterGraphWithEdges ;
     DataSet<Long> numVertices;
+
     ExecutionEnvironment env;
 
     public AverageFriendFoeRatio(Graph<Long, NullValue, Boolean> g, ExecutionEnvironment e){
@@ -35,12 +35,10 @@ public class AverageFriendFoeRatio {
     private void ComputeAndSave() {
 
         try {
-            Long x = counterGraphWithEdges
+            numVertices = env.fromElements(counterGraphWithEdges
                     .groupBy(0)
                     .reduceGroup(new FriendsToFoeRatio())
-                    .count();
-            System.out.println("NUMBER OF VERTICES WITH FRIENDS AND FOE: "+x);
-            numVertices = env.fromElements(x);
+                    .count());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -61,8 +59,10 @@ public class AverageFriendFoeRatio {
             Iterator<Tuple3<Long, Long, Boolean>> iterator = iterable.iterator();
             int friendsCount = 0;
             int foeCount = 0;
+
             Tuple3<Long, Long, Boolean> firstVertex = iterator.next();
 
+            //Add +1 for first iteration
             if (firstVertex.f2)
                 friendsCount++;
             else
@@ -74,13 +74,13 @@ public class AverageFriendFoeRatio {
                 else
                     foeCount++;
             }
+            //Ignore vertices that only have friends or foes
             if(friendsCount != 0 && foeCount != 0)
                 collector.collect(new Tuple2<Long, Double>(firstVertex.f0, (double)friendsCount/foeCount));
         }
     }
 
     private class AverageReducer implements ReduceFunction<Tuple2<Long, Double>> {
-
         @Override
         public Tuple2<Long, Double> reduce(Tuple2<Long, Double> one, Tuple2<Long, Double> two) throws Exception {
             return new Tuple2<Long, Double>(0L,one.f1+two.f1);
@@ -94,20 +94,11 @@ public class AverageFriendFoeRatio {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             totVertices = getRuntimeContext().<Long>getBroadcastVariable("totVertices").get(0);
-            System.out.println("totVertices: " + totVertices);
         }
 
         @Override
         public Tuple2<Long, Double> map(Tuple2<Long, Double> in) throws Exception {
             return new Tuple2<Long,Double>(0L, in.f1/totVertices);
-        }
-    }
-
-    private class EdgeFilter implements FilterFunction<org.apache.flink.graph.Edge<Long, Boolean>> {
-        @Override
-        public boolean filter(Edge<Long, Boolean> longBooleanEdge) throws Exception {
-            System.out.println("FILTER EDGE: "+longBooleanEdge);
-            return true;
         }
     }
 }

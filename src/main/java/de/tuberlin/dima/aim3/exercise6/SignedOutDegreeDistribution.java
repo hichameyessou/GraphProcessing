@@ -11,12 +11,12 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 public class SignedOutDegreeDistribution {
-    DataSet<Tuple2<Long, LongValue>> friendOutDegrees ;
-    DataSet<Tuple2<Long,LongValue>> foeOutDegrees ;
+    DataSet<Tuple2<Long, LongValue>> friendOutDegrees;
+    DataSet<Tuple2<Long,LongValue>> foeOutDegrees;
+
     DataSet<Long> totFriendVertices;
     DataSet<Long> totFoeVertices;
     ExecutionEnvironment env;
-
 
     public SignedOutDegreeDistribution(Graph<Long, NullValue, Boolean> g, ExecutionEnvironment e){
         this.friendOutDegrees = g.filterOnEdges(new FilterFriends()).outDegrees();
@@ -35,18 +35,18 @@ public class SignedOutDegreeDistribution {
         }
 
         friendOutDegrees
-                .groupBy(1)
-                .reduceGroup(new DegreeDistribution.DistributionElement())
-                .withBroadcastSet(totFriendVertices, "totVertices")
-                .writeAsCsv(Config.outputPath()+" out-degree_friend_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);;
+            .groupBy(1)
+            .reduceGroup(new DegreeDistribution.DistributionElement())
+            .withBroadcastSet(totFriendVertices, "totVertices")
+            .writeAsCsv(Config.outputPath()+" out-degree_friend_dist.csv", FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);;
 
         foeOutDegrees
-                .groupBy(1)
-                .reduceGroup(new DegreeDistribution.DistributionElement())
-                .withBroadcastSet(totFoeVertices, "totVertices")
-                .writeAsCsv(Config.outputPath()+" out-degree_foe_dist.csv", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
+            .groupBy(1)
+            .reduceGroup(new DegreeDistribution.DistributionElement())
+            .withBroadcastSet(totFoeVertices, "totVertices")
+            .writeAsCsv(Config.outputPath()+" out-degree_foe_dist.csv", FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);
 
     }
 }

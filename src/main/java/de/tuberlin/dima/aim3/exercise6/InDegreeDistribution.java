@@ -22,11 +22,13 @@ public class InDegreeDistribution {
     public void ComputeAndSave(){
 
         DataSet<Tuple2<Long, Double>> inDegreeDistribution = inDegrees
-                .groupBy(1).reduceGroup(new DegreeDistribution.DistributionElement())
+                .groupBy(1)
+                .reduceGroup(new DegreeDistribution.DistributionElement())
                 .withBroadcastSet(totVertices, "totVertices");
 
         DataSet<Tuple2<Long, Double>> outDegreeDistribution = outDegrees
-                .groupBy(1).reduceGroup(new DegreeDistribution.DistributionElement())
+                .groupBy(1)
+                .reduceGroup(new DegreeDistribution.DistributionElement())
                 .withBroadcastSet(totVertices, "totVertices");
 
         inDegreeDistribution

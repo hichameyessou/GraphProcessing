@@ -5,10 +5,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.ReduceEdgesFunction;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -28,19 +25,20 @@ public class VertexQuery {
 
     private void ComputeAndSave() {
         maxFriends
-                .filter(new FFilterFriends())
-                .groupBy(0)
-                .reduceGroup(new EdgeGroupReducer())
-                .maxBy(1)
-                .writeAsCsv(Config.outputPath()+"vertex_max_friend.txt", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
+            .filter(new FFilterFriends())
+            .groupBy(0)
+            .reduceGroup(new EdgeGroupReducer())
+            .maxBy(1)
+            .writeAsCsv(Config.outputPath()+"vertex_max_friend.txt", FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);
 
-        maxFoe.filter(new FFilterFoe())
-                .groupBy(0)
-                .reduceGroup(new EdgeGroupReducer())
-                .maxBy(1)
-                .writeAsCsv(Config.outputPath()+"vertex_max_foe.txt", FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
+        maxFoe
+            .filter(new FFilterFoe())
+            .groupBy(0)
+            .reduceGroup(new EdgeGroupReducer())
+            .maxBy(1)
+            .writeAsCsv(Config.outputPath()+"vertex_max_foe.txt", FileSystem.WriteMode.OVERWRITE)
+            .setParallelism(1);
     }
 
     private class FFilterFriends implements org.apache.flink.api.common.functions.FilterFunction<Tuple3<Long, Long, Boolean>> {
