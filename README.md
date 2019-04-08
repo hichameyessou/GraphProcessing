@@ -2,6 +2,7 @@
 ## Info
 
 Academic project that computes varying distributions and summary network statistics for the Slashdot-Zoo dataset. (available here http://konect.uni-koblenz.de/networks/slashdot-zoo)
+
 Based on Gelly, the graph-processing API of Apache Flink.
 
 ### Main tasks
